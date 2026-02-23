@@ -18,11 +18,12 @@ create table if not exists public.extractions (
 );
 
 create table if not exists public.person_memory (
-  person_id text primary key,
   user_id uuid not null,
+  person_id text not null,
   running_summary text not null default '',
   key_facts_json jsonb not null default '{"emails":[],"phoneNumbers":[],"companies":[],"nextActions":[],"dateMentions":[]}'::jsonb,
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  primary key (user_id, person_id)
 );
 
 alter table public.uploads enable row level security;
