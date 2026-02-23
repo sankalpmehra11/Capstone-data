@@ -127,6 +127,7 @@ export default function PersonDetailPage({ params }: { params: { id: string } })
     const memorySelect = await supabase
       .from('person_memory')
       .select('running_summary,key_facts_json')
+      .eq('user_id', userId)
       .eq('person_id', personId)
       .maybeSingle();
 
@@ -142,7 +143,7 @@ export default function PersonDetailPage({ params }: { params: { id: string } })
         key_facts_json: nextFacts,
         updated_at: new Date().toISOString()
       },
-      { onConflict: 'person_id' }
+      { onConflict: 'user_id,person_id' }
     );
 
     if (memoryUpsert.error) {
