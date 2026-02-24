@@ -185,12 +185,41 @@ export default function PersonDetailPage({ params }: { params: { id: string } })
       return;
     }
 
-    if (pendingUploadId) {
-      await supabase.from('extractions').insert({
-        upload_id: pendingUploadId,
-        user_id: user.id,
-        extracted_text: rawText
-      });
+    const interactionSummary = summarizeText(extractedText) || 'Captured evidence';
+    await supabase.from('interactions').insert({
+      person_id: personId,
+      user_id: userId,
+      occurred_at: new Date().toISOString(),
+      channel,
+      summary: interactionSummary,
+      raw_capture: extractedText
+    });
+
+    const memorySelect = await supabase
+      .from('person_memory')
+      .select('running_summary,key_facts_json')
+      .eq('user_id', userId)
+      .eq('person_id', personId)
+      .maybeSingle();
+
+    const incomingFacts = extractKeyFacts(extractedText);
+    const nextSummary = updateRunningSummary(memorySelect.data?.running_summary ?? null, extractedText);
+    const nextFacts = mergeFacts(memorySelect.data?.key_facts_json as KeyFacts | null, incomingFacts);
+
+    const memoryUpsert = await supabase.from('person_memory').upsert(
+      {
+        person_id: personId,
+        user_id: userId,
+        running_summary: nextSummary,
+        key_facts_json: nextFacts,
+        updated_at: new Date().toISOString()
+      },
+      { onConflict: 'user_id,person_id' }
+    );
+
+    if (memoryUpsert.error) {
+      setStatus(memoryUpsert.error.message);
+      return;
     }
 
     const memorySelect = await supabase.from('person_memory').select('running_summary,key_facts_json').eq('user_id', user.id).eq('person_id', personId).maybeSingle();
